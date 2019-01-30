@@ -8,6 +8,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 public class NewsFeederBot extends TelegramLongPollingBot {
 
+	private long myChatID;
 	
 	@Override
 	public String getBotUsername() {
@@ -17,6 +18,8 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 	@Override
 	public void onUpdateReceived(Update update) {
 		if (update.hasMessage() && update.getMessage().hasText()) {
+			
+			myChatID = update.getMessage().getChatId();
 			
 			for (int j = 0; j < NewsApiParams.KEYWORD_LIST.length; j++) {
 				String ch = NewsApiParams.KEYWORD_LIST[j];
@@ -30,7 +33,7 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 				if (c == 0) {
 					// send a message to announce no news were found.
 					SendMessage message = new SendMessage()
-							.setChatId(update.getMessage().getChatId())
+							.setChatId(myChatID)
 							.setText("No news found for " + ch + ".");
 					try {
 						execute(message);
@@ -41,7 +44,7 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 				else {
 					// send an intro message to announce news are coming
 					SendMessage messageIntro = new SendMessage()
-							.setChatId(update.getMessage().getChatId())
+							.setChatId(myChatID)
 							.setText("Found news for " + ch + "!");
 					try {
 						execute(messageIntro);
@@ -54,7 +57,7 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 						Article a = v.get(i);
 
 						SendMessage message = new SendMessage()
-								.setChatId(update.getMessage().getChatId())
+								.setChatId(myChatID)
 								.setText(a.getTitle() + "\n\n" + 
 										a.getDescription() + "\n" + 
 										a.getUrl());
