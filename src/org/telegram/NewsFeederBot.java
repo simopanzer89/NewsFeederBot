@@ -97,6 +97,9 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 	
 	private void runSearch() {
 		
+		String report = "Search report:\n\n"
+				+ "keyword\t #articles\n\n";
+				
 		for (int j = 0; j < NewsApiParams.KEYWORD_LIST.length; j++) {
 			String ch = NewsApiParams.KEYWORD_LIST[j];
 			
@@ -106,18 +109,10 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 			
 			Vector<Article> v = q.execute();
 			int c = v.size();
-			if (c == 0) {
-				// send a message to announce no news were found.
-				SendMessage message = new SendMessage()
-						.setChatId(myChatID)
-						.setText("No news found for " + ch + ".");
-				try {
-					execute(message);
-				} catch (TelegramApiException e) {
-					e.printStackTrace();
-				}
-			}
-			else {
+						
+			report = report.concat(ch + "\t" + String.valueOf(c) + "\n");
+			
+			if (c > 0) {
 				// send an intro message to announce news are coming
 				SendMessage messageIntro = new SendMessage()
 						.setChatId(myChatID)
@@ -145,6 +140,16 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 
 				}
 			}
+		}
+		
+		// Send the final report
+		SendMessage message = new SendMessage()
+				.setChatId(myChatID)
+				.setText(report);
+		try {
+			execute(message);
+		} catch (TelegramApiException e) {
+			e.printStackTrace();
 		}
 	}
 	
