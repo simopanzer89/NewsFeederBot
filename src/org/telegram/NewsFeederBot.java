@@ -97,9 +97,10 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 	
 	private void runSearch() {
 		
-		String report = "Search report:\n\n"
-				+ "keyword\t #articles\n\n";
-				
+		String report = "Search report:\n"
+				+ "_keyword\t #articles_\n\n";
+		String reportLine;
+		
 		for (int j = 0; j < NewsApiParams.KEYWORD_LIST.length; j++) {
 			String ch = NewsApiParams.KEYWORD_LIST[j];
 			
@@ -109,8 +110,8 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 			
 			Vector<Article> v = q.execute();
 			int c = v.size();
-						
-			report = report.concat(ch + "\t" + String.valueOf(c) + "\n");
+			
+			reportLine = ch + "\t" + String.valueOf(c);
 			
 			if (c > 0) {
 				// send an intro message to announce news are coming
@@ -139,13 +140,19 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 					}
 
 				}
+				
+				// nicely format the report (bold)
+				reportLine = "*" + reportLine + "*";
 			}
+			
+			report = report.concat(reportLine + "\n");
 		}
 		
 		// Send the final report
 		SendMessage message = new SendMessage()
 				.setChatId(myChatID)
-				.setText(report);
+				.setText(report)
+				.setParseMode("Markdown");
 		try {
 			execute(message);
 		} catch (TelegramApiException e) {
