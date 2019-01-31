@@ -1,5 +1,14 @@
 package org.telegram;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Vector;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -8,7 +17,34 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 public class NewsFeederBot extends TelegramLongPollingBot {
 
+	private final static long PERIOD_SEC = 86400; //24 * 60 * 60;
+	private final static int TARGET_HOUR = 21;
+	
+	private final ScheduledExecutorService scheduler;
+	private final Runnable task;
+	private ScheduledFuture<?> taskHandle;
+	
 	private long myChatID;
+
+	public NewsFeederBot() {
+		
+		scheduler = Executors.newScheduledThreadPool(1);
+		
+		task = new Runnable() {
+
+			@Override
+			public void run() {
+				// DEBUG
+				String s = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+				System.out.println("Run search!" + s);
+								
+				runSearch();
+			}
+			
+		};
+		
+		taskHandle = null;
+	}
 	
 	@Override
 	public String getBotUsername() {
@@ -22,7 +58,34 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 			myChatID = update.getMessage().getChatId();
 			//System.out.println("message received from chat ID " + String.valueOf(myChatID));
 			
-			runSearch();			
+			long initialDelay = getSecondsUntilTarget(TARGET_HOUR);
+			System.out.println(initialDelay + " seconds to the next search.");
+			
+			// if present, cancel old task
+			if (!(taskHandle == null)) {
+				taskHandle.cancel(true);
+				System.out.println("CANCELLING OLD TASK.");
+			}
+			
+			// schedule new task
+			System.out.println("CREATING NEW TASK.");
+			taskHandle = scheduler.scheduleAtFixedRate(task, initialDelay, PERIOD_SEC, TimeUnit.SECONDS);
+			
+			System.out.println("Setting automatic search every day at "+ LocalTime.of(TARGET_HOUR, 0).toString());
+			//runSearch();
+			
+			// inform the user that automatic search has been set
+			SendMessage message = new SendMessage()
+					.setChatId(myChatID)
+					.setText("Automatic search has been scheduled every day at " 
+					+ LocalTime.of(TARGET_HOUR, 0).toString()
+					+'.');
+			try {
+				execute(message);
+			} catch (TelegramApiException e) {
+				e.printStackTrace();
+			}
+			
 		}
 		return;
 	}
@@ -84,5 +147,28 @@ public class NewsFeederBot extends TelegramLongPollingBot {
 			}
 		}
 	}
-
+	
+	/*
+	 * Get time left (seconds) to the next scheduled task.
+	 * Task is scheduled every day at a prefixed time (TARGET_HOUR:00:00)
+	 */
+	private long getSecondsUntilTarget(int targetHour) {
+		
+		LocalDateTime now = LocalDateTime.now();
+		
+		int currentHour = now.getHour();
+		
+		LocalDateTime target;
+		if (currentHour < targetHour) {
+			target = now.truncatedTo(ChronoUnit.HOURS).withHour(targetHour);
+		}
+		else {
+			target = now.truncatedTo(ChronoUnit.HOURS).withHour(targetHour).plusDays(1); // jump to tomorrow
+		}
+		Duration d = Duration.between(now, target);
+		
+		System.out.println("current time:" + now.toString());
+		System.out.println("target time:" + target.toString());
+		return d.getSeconds();
+	}
 }
